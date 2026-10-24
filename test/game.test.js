@@ -1,8 +1,8 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{spawn}=require('node:child_process'),{WebSocket}=require('ws'),crypto=require('node:crypto');
 test('multiplayer permissions, privacy, settings, reconnection, votes, rounds and kicks',async()=>{
-const port=32000+Math.floor(Math.random()*10000),proc=spawn(process.execPath,['server.js'],{cwd:require('node:path').join(__dirname,'..'),env:{...process.env,PORT:String(port)},stdio:['ignore','pipe','inherit']});const clients=[];
-try{await new Promise((r,j)=>{proc.stdout.once('data',r);proc.once('error',j)});
-async function client(){const ws=new WebSocket('ws://127.0.0.1:'+port),messages=[];ws.on('message',d=>messages.push(JSON.parse(d)));await new Promise(r=>ws.once('open',r));const c={ws,messages,clientId:crypto.randomUUID(),send(m){ws.send(JSON.stringify(m))},async wait(fn){for(let n=0;n<200;n++){const idx=messages.findIndex(fn);if(idx>=0)return messages.splice(idx,1)[0];await new Promise(r=>setTimeout(r,10))}throw Error('Timed out '+fn)},async state(){return this.wait(m=>m.type==='state')}};clients.push(c);return c}
+const port=32000+Math.floor(Math.random()*10000);process.env.PORT=String(port);const {server,wss}=require('../server.js');const clients=[];
+try{if(!server.listening)await new Promise(r=>server.once('listening',r));
+async function client(){const ws=new WebSocket('ws://127.0.0.1:'+port),messages=[];ws.on('message',d=>messages.push(JSON.parse(d)));await new Promise((r,j)=>{ws.once('open',r);ws.once('error',j)});const c={ws,messages,clientId:crypto.randomUUID(),send(m){ws.send(JSON.stringify(m))},async wait(fn){for(let n=0;n<200;n++){const idx=messages.findIndex(fn);if(idx>=0)return messages.splice(idx,1)[0];await new Promise(r=>setTimeout(r,10))}throw Error('Timed out '+fn)},async state(){return this.wait(m=>m.type==='state')}};clients.push(c);return c}
 const host=await client();host.send({type:'create',name:'Host',clientId:host.clientId});const joined=await host.wait(m=>m.type==='joined');await host.state();const players=[host];for(let n=1;n<5;n++){const c=await client();c.send({type:'join',name:'P'+n,code:joined.code,clientId:c.clientId});c.joined=await c.wait(m=>m.type==='joined');await c.state();players.push(c)}
 function clear(){for(const c of clients)c.messages.length=0}
 const settings={type:'settings',category:'Tasodifiy',impostors:2,minutes:12,hints:true,knowEachOther:true};clear();players[1].send(settings);await players[1].wait(m=>m.type==='error');host.send({...settings,minutes:1.5});await host.wait(m=>m.type==='error');host.send({...settings,minutes:61});await host.wait(m=>m.type==='error');host.send(settings);assert.equal((await host.state()).settings.minutes,12);
@@ -13,7 +13,7 @@ clear();host.send({type:'reset'});await host.wait(m=>m.phase==='lobby');host.sen
 clear();players[2].send({type:'kick',target:players[3].id});await players[2].wait(m=>m.type==='error');host.send({type:'kick',target:players[3].id});await players[3].wait(m=>m.type==='kicked');assert.equal((await host.wait(m=>m.phase==='lobby')).players.length,4);
 const banned=await client();banned.send({type:'join',name:'Renamed',code:joined.code,clientId:players[3].clientId});await banned.wait(m=>m.type==='kicked');const old=await client();old.send({type:'resume',code:joined.code,token:players[3].joined.token});await old.wait(m=>m.type==='error');
 const health=await fetch('http://127.0.0.1:'+port+'/health');assert.equal(await health.text(),'OK');assert.equal((await fetch('http://127.0.0.1:'+port+'/server.js')).status,404);
-}catch(e){console.error(e);throw e}finally{for(const c of clients)c.ws.terminate();proc.kill();proc.stdout.destroy()}
+}catch(e){console.error(e);throw e}finally{for(const c of clients)c.ws.terminate();wss.close();await new Promise(r=>server.close(r))}
 });
 
 

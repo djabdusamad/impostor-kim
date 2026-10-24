@@ -40,3 +40,7 @@ Both HTML scripts were syntax checked and their setup/role/game screens exercise
 ## Quick acceptance check (no code)
 
 Create a room with 5 players. Choose 12 minutes and 2 impostors, enable both toggles, and start. Check privately that civilians see only the word and impostors see only the category plus the other impostor. Start discussion; reload one tab and confirm the timer has not restarted. Vote, finish, then reset with both toggles off and check the new roles. Remove a player during a round: everyone else should return to the lobby, and the removed browser should be refused entry to the same room. Also play an offline round with both toggles enabled, passing the phone only after hiding each role.
+
+## Reference-inspired Uzbek redesign
+
+The setup screen now uses a red title banner, two mode cards, compact settings rows and blue switches inspired by imposter.app. Player names, impostor count, topics and duration each have their own editor. Offline custom word lists (3–100 words, 50 characters per word) are saved on the device. Timer is optional in both modes; timed online rounds still use one server deadline. Uzbek labels and existing host moderation, private roles, reconnections and voting are retained. New cache version: v4.
