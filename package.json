@@ -1,1 +1,15 @@
-{"name":"impostor-kim","version":"2.0.0","private":true,"scripts":{"start":"node server.js"},"dependencies":{"ws":"^8.18.0"},"engines":{"node":">=20"}}
+{
+  "name": "impostor-kim",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,23 +1,42 @@
-# IMPOSTOR KIM? — Public online deployment
+# IMPOSTOR KIM? — updated project
 
-This folder is ready to deploy as a Node.js web service on Render. No code edits required.
+## Deploy without coding
 
-## Simple instructions (browser only)
+1. Extract `impostor-kim-updated.zip` on your computer.
+2. Open https://github.com/djabdusamad/impostor-kim and sign in with an account allowed to edit it.
+3. Choose **Add file → Upload files**. Upload the extracted files and the `test` folder into the repository root, replacing matching files. Do not upload the ZIP itself or put everything inside an extra folder. The root must contain `package.json`, `server.js`, `index.html` and `online.html`.
+4. Enter a message such as “Add host settings and player moderation”. Prefer a new branch and pull request, then merge it after review.
+5. If Render already hosts this repository, open that existing service. It should deploy the connected branch automatically. Otherwise use **Manual Deploy → Deploy latest commit** after merging.
+6. If creating the Render service for the first time: choose **New → Web Service**, connect this repository, choose the updated branch, select **Node**, use build command `npm ci`, start command `npm start`, and health check `/health`. Leave the root directory empty. Keep one service instance because rooms are held in memory.
+7. Wait until Render reports **Live**, open its HTTPS address, and refresh every game device. The offline cache has a new version; close and reopen older installed app windows if necessary. Create a new room after deploying.
 
-1. Extract the ZIP file. Open the inner `impostor-kim-deploy` folder. You should see `server.js`, `package.json`, `render.yaml`, `index.html`, and `online.html`.
-2. Create or sign in to your GitHub account at https://github.com/.
-3. In GitHub, choose **+ > New repository**. Name it `impostor-kim`, select **Private** (or Public if you prefer), and choose **Create repository**.
-4. Choose **uploading an existing file**. Drag **all files inside** the extracted `impostor-kim-deploy` folder into the GitHub upload area (not the enclosing folder). Include `render.yaml` and `server.js`. GitHub browser uploads may not include hidden files such as `.gitignore`; that's okay. Click **Commit changes**.
-5. Go to https://dashboard.render.com/ and sign in. Choose **New > Blueprint** (if available), connect GitHub and select your `impostor-kim` repository. Render will read `render.yaml`. Confirm the proposed web service and deploy. If Blueprint is unavailable, choose **New > Web Service**, connect the same repo, choose Node, set **Build Command** to `npm install` and **Start Command** to `npm start`, and select the Free instance type if offered.
-6. Wait for Render to show the service is live. Open the public `.onrender.com` address Render gives you. Open `/online.html` if necessary.
-7. Create a room, then send your friends the **public website URL** and the room code. Friends can use different Wi-Fi networks or mobile data.
+GitHub uploads: https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository
+Render setup: https://render.com/docs/deploy-node-express-app
+Render existing-service deployment: https://render.com/docs/deploys
 
-## Important notes
+## What changed
 
-- `localhost` and `192.168.x.x` links are local only. Share the **Render public URL**, not a local IP address.
-- The free Render service may sleep after inactivity, delaying the first visit. Pricing and free availability can change.
-- Game rooms are stored only in server memory. A restart, deployment, or sleep clears rooms; create a new room after that.
-- This is a prototype: test with multiple devices before sharing widely.
-- The offline single-device game can be used once the PWA's assets have been cached on a supported browser. Online rooms require internet.
-- The server doesn't need a database for basic live rooms, but persistence and scalability would need more work.
-- Don't upload passwords, API keys, or your `node_modules` folder to GitHub.
+- Host selects any whole number from 1 to 60 discussion minutes. Server validates the range. All devices use one server deadline, including after reconnecting. When time expires, voting opens automatically; the host can open voting earlier.
+- Host can remove any other player from the lobby or during play. Server rejects non-host moderation. Removing someone during roles, discussion or voting cancels that round and returns everyone else to the lobby. A fresh round avoids stale votes and role imbalance.
+- Removed players lose their resume token. The server blocks their persistent browser identity from joining the same room, even with a new name. This is a casual-game block: clearing browser storage or using another browser/device can bypass it. Rooms and blocks disappear on server restart or expiry. Stronger bans require authenticated accounts.
+- “Impostorga ishora” gives only the selected topic/category on the private role screen, before discussion. The actual secret word is never included in an impostor's role message. When the host explicitly selects a topic, that topic is already visible in lobby settings; choose “Tasodifiy” if the topic should be a useful optional hint.
+- “Impostorlar bir-birini bilsin” displays partner names only to impostors when there are at least two. The control is disabled for one impostor. Civilians never receive partner lists or hints.
+- Both toggles default off. Settings cannot change mid-round. At least two civilians are required; reduce impostor count if there are too few players.
+- Offline single-phone mode has the same duration and role toggles. Roles are hidden between handoffs. Offline mode shares one device, so its local data is not protected from someone inspecting the browser.
+- Black/white/red styling and Uzbek UI remain. Service worker cache is upgraded to v3.
+
+## Reconnection and game rules
+
+Reload in the same tab to resume using its session token. Reconnecting replaces the previous connection and restores only that player's role and the remaining discussion time. The host stays host while disconnected; another player cannot take over. A host may kick disconnected players. Votes remain private until results, cannot target yourself online, and count once per player. Ties favor impostors; catching one impostor wins the round, preserving the existing rules. Host may end voting early.
+
+Rooms are held in server memory, expire after three hours without player activity and do not survive restarts/deployments. Complete games before deploying. Use the Render address for online play; opening online.html as a local file will not provide a server.
+
+## Validation
+
+Run `npm ci` then `npm test` to repeat the automated multiplayer integration test. It checks five clients, invalid settings, host-only actions, two-impostor private roles, toggle-off privacy, discussion deadline restoration, socket replacement, voting, repeat rounds, active-round kick cancellation, blocked rejoin/resume, health and source-file protection.
+
+Both HTML scripts were syntax checked and their setup/role/game screens exercised in a simulated browser environment. No full visual browser or production deployment test was performed in this session. After deploying, use several real devices to confirm layout, offline caching, and voting on your network.
+
+## Quick acceptance check (no code)
+
+Create a room with 5 players. Choose 12 minutes and 2 impostors, enable both toggles, and start. Check privately that civilians see only the word and impostors see only the category plus the other impostor. Start discussion; reload one tab and confirm the timer has not restarted. Vote, finish, then reset with both toggles off and check the new roles. Remove a player during a round: everyone else should return to the lobby, and the removed browser should be refused entry to the same room. Also play an offline round with both toggles enabled, passing the phone only after hiding each role.
