@@ -2,7 +2,7 @@ const http=require('http'),fs=require('fs'),path=require('path'),crypto=require(
 const {WebSocketServer,WebSocket}=require('ws');
 const PORT=process.env.PORT||3000,root=__dirname,rooms=new Map();
 const {WORDS,WORD_PICTURES}=require('./words.js');
-const server=http.createServer((req,res)=>{let url;try{url=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{return res.writeHead(400).end()};if(url==='/health'){res.writeHead(200,{'Content-Type':'text/plain'});return res.end('OK')}if(url==='/')url='/index.html';const allowed=new Set(['/index.html','/online.html','/sw.js','/manifest.webmanifest','/icon.svg','/voice.js','/chat.js','/categories.js','/category-ui.js','/words.js']);if(!allowed.has(url)&&!Object.values(WORD_PICTURES).includes(url))return res.writeHead(404).end('Not found');fs.readFile(path.join(root,url),(err,data)=>{if(err)return res.writeHead(404).end();res.writeHead(200,{'Content-Type':url.endsWith('.html')?'text/html; charset=utf-8':url.endsWith('.js')?'application/javascript':url.endsWith('.svg')?'image/svg+xml':'application/json','Cache-Control':'no-cache'}).end(data)})});
+const server=http.createServer((req,res)=>{let url;try{url=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{return res.writeHead(400).end()};if(url==='/health'){res.writeHead(200,{'Content-Type':'text/plain'});return res.end('OK')}if(url==='/')url='/index.html';const allowed=new Set(['/index.html','/online.html','/sw.js','/manifest.webmanifest','/icon.svg','/voice.js','/chat.js','/app-update.js','/categories.js','/category-ui.js','/words.js']);if(!allowed.has(url)&&!Object.values(WORD_PICTURES).includes(url))return res.writeHead(404).end('Not found');fs.readFile(path.join(root,url),(err,data)=>{if(err)return res.writeHead(404).end();res.writeHead(200,{'Content-Type':url.endsWith('.html')?'text/html; charset=utf-8':url.endsWith('.js')?'application/javascript':url.endsWith('.svg')?'image/svg+xml':'application/json','Cache-Control':url==='/sw.js'?'no-store':'no-cache'}).end(data)})});
 const wss=new WebSocketServer({server,maxPayload:32768});const send=(ws,msg)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg))};const random=n=>crypto.randomInt(n);const code=()=>crypto.randomBytes(4).toString('hex').slice(0,6).toUpperCase();
 
 
@@ -96,3 +96,4 @@ if(m.type==='reset'&&room.phase==='results'){reset(room);publish(room)}
 setInterval(()=>{for(const [c,r] of rooms){if(r.phase==='discussion'&&r.deadline!==null&&Date.now()>=r.deadline){r.phase='voting';publish(r)}if(Date.now()-r.updated>3*60*60*1000){for(const p of r.players)p.ws?.close();rooms.delete(c)}}},1000).unref();server.listen(PORT,'0.0.0.0',()=>console.log('IMPOSTOR KIM? listening on port '+PORT));
 
 module.exports={server,wss,rooms};
+
