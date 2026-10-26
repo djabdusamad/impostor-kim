@@ -1,0 +1,3 @@
+.telegram-app .app{padding-top:calc(20px + var(--game-safe-top,0px));padding-left:calc(20px + var(--game-safe-left,0px));padding-right:calc(20px + var(--game-safe-right,0px));padding-bottom:calc(100px + var(--game-safe-bottom,0px));min-height:var(--tg-viewport-stable-height,100vh)}
+.telegram-app .victory-footer{padding-bottom:calc(12px + var(--game-safe-bottom,0px))}
+.telegram-invite{margin:12px 0;font-size:13px}
