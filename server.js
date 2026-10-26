@@ -2,13 +2,28 @@ const http=require('http'),fs=require('fs'),path=require('path'),crypto=require(
 const {WebSocketServer,WebSocket}=require('ws');
 const PORT=process.env.PORT||3000,root=__dirname,rooms=new Map();
 const WORDS={"Oziq-ovqat":['Osh','Somsa','Manti','Lag‘mon','Shashlik','Sumalak','Chuchvara','Tandir non','Qovun','Tarvuz'],"Joylar":['Maktab','Bozor','Kutubxona','Stadion','Aeroport','Choyxona','Metro','Kinoteatr','Muzey','Bog‘'],"Hayvonlar":['Mushuk','It','Sher','Fil','Ot','Tulki','Bo‘ri','Ayiq','Quyon','Tuya'],"Buyumlar":['Telefon','Kalit','Ko‘zoynak','Sumka','Soat','Qalam','Kitob','Kompyuter','Stul','Stol'],"Kasblar":['O‘qituvchi','Shifokor','Dizayner','Dasturchi','Oshpaz','Haydovchi','Uchuvchi','Tarjimon','Rassom','Sartarosh']};
-const server=http.createServer((req,res)=>{let url;try{url=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{return res.writeHead(400).end()};if(url==='/health'){res.writeHead(200,{'Content-Type':'text/plain'});return res.end('OK')}if(url==='/')url='/index.html';const allowed=new Set(['/index.html','/online.html','/sw.js','/manifest.webmanifest','/icon.svg']);if(!allowed.has(url))return res.writeHead(404).end('Not found');fs.readFile(path.join(root,url),(err,data)=>{if(err)return res.writeHead(404).end();res.writeHead(200,{'Content-Type':url.endsWith('.html')?'text/html; charset=utf-8':url.endsWith('.js')?'application/javascript':url.endsWith('.svg')?'image/svg+xml':'application/json','Cache-Control':'no-cache'}).end(data)})});
-const wss=new WebSocketServer({server,maxPayload:4096});const send=(ws,msg)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg))};const random=n=>crypto.randomInt(n);const code=()=>crypto.randomBytes(4).toString('hex').slice(0,6).toUpperCase();
+const server=http.createServer((req,res)=>{let url;try{url=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{return res.writeHead(400).end()};if(url==='/health'){res.writeHead(200,{'Content-Type':'text/plain'});return res.end('OK')}if(url==='/')url='/index.html';const allowed=new Set(['/index.html','/online.html','/sw.js','/manifest.webmanifest','/icon.svg','/voice.js']);if(!allowed.has(url))return res.writeHead(404).end('Not found');fs.readFile(path.join(root,url),(err,data)=>{if(err)return res.writeHead(404).end();res.writeHead(200,{'Content-Type':url.endsWith('.html')?'text/html; charset=utf-8':url.endsWith('.js')?'application/javascript':url.endsWith('.svg')?'image/svg+xml':'application/json','Cache-Control':'no-cache'}).end(data)})});
+const wss=new WebSocketServer({server,maxPayload:32768});const send=(ws,msg)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg))};const random=n=>crypto.randomInt(n);const code=()=>crypto.randomBytes(4).toString('hex').slice(0,6).toUpperCase();
 
-function publish(room){for(const p of room.players)send(p.ws,{type:'state',code:room.code,phase:room.phase,host:p.id===room.host,me:p.id,round:room.round,deadline:room.deadline,serverNow:Date.now(),players:room.players.map(x=>({id:x.id,name:x.name,connected:x.ws?.readyState===WebSocket.OPEN,voted:room.votes.has(x.id)})),settings:room.settings,votesCount:room.votes.size,results:room.phase==='results'?room.results:undefined})}
+
+function voiceIceServers(id){
+ const servers=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}];
+ const urls=(process.env.TURN_URLS||'').split(',').map(x=>x.trim()).filter(x=>/^turns?:[^\s]+$/.test(x));
+ if(urls.length&&process.env.TURN_SECRET){const username=(Math.floor(Date.now()/1000)+86400)+':'+id;servers.push({urls,username,credential:crypto.createHmac('sha1',process.env.TURN_SECRET).update(username).digest('base64')})}
+ return servers
+}
+function cleanVoiceSignal(signal){
+ if(!signal||typeof signal!=='object'||Array.isArray(signal))return null;
+ if(signal.restart===true)return {restart:true};
+ if(signal.description){const d=signal.description;if(!['offer','answer'].includes(d.type)||typeof d.sdp!=='string'||d.sdp.length>24000||!/^m=audio /m.test(d.sdp)||/^m=(video|application) /m.test(d.sdp))return null;return {description:{type:d.type,sdp:d.sdp}}}
+ if(Object.hasOwn(signal,'candidate')){const c=signal.candidate;if(c===null)return {candidate:null};if(!c||typeof c.candidate!=='string'||c.candidate.length>2048||!(c.sdpMid===null||typeof c.sdpMid==='string'&&c.sdpMid.length<64)||!(c.sdpMLineIndex===null||Number.isInteger(c.sdpMLineIndex)&&c.sdpMLineIndex>=0&&c.sdpMLineIndex<8))return null;return {candidate:{candidate:c.candidate,sdpMid:c.sdpMid,sdpMLineIndex:c.sdpMLineIndex}}}
+ return null
+}
+
+function publish(room){for(const p of room.players)send(p.ws,{type:'state',code:room.code,phase:room.phase,host:p.id===room.host,me:p.id,round:room.round,deadline:room.deadline,serverNow:Date.now(),players:room.players.map(x=>({id:x.id,name:x.name,connected:x.ws?.readyState===WebSocket.OPEN,voted:room.votes.has(x.id),voice:{joined:!!x.voice,muted:x.voice?.muted!==false,blocked:!!x.voiceBlocked,session:x.voice?.session||null}})),settings:room.settings,votesCount:room.votes.size,results:room.phase==='results'?room.results:undefined})}
 function error(ws,message){send(ws,{type:'error',message})}
 function roleFor(room,p){const impostor=room.impostors.includes(p.id);return {type:'role',round:room.round,impostor,word:impostor?null:room.word,hint:impostor&&room.settings.hints?room.category:null,partners:impostor&&room.settings.knowEachOther&&room.impostors.length>1?room.players.filter(x=>x.id!==p.id&&room.impostors.includes(x.id)).map(x=>({id:x.id,name:x.name})):[]}}
-function removeConnection(ws){const p=ws.player,room=rooms.get(ws.room);if(!p||!room||p.ws!==ws)return;p.ws=null;room.updated=Date.now();publish(room)}
+function removeConnection(ws){const p=ws.player,room=rooms.get(ws.room);if(!p||!room||p.ws!==ws)return;p.voice=null;p.ws=null;room.updated=Date.now();publish(room)}
 function finish(room){const counts=Object.fromEntries(room.players.map(p=>[p.id,0]));for(const v of room.votes.values())if(v in counts)counts[v]++;const max=Math.max(...Object.values(counts)),leaders=Object.keys(counts).filter(k=>counts[k]===max);room.results={word:room.word,impostors:room.impostors,counts,caught:room.votes.size>0&&leaders.length===1&&room.impostors.includes(leaders[0])};room.phase='results';publish(room)}
 function reset(room){room.phase='lobby';room.votes=new Map();room.word=null;room.impostors=[];room.results=null;room.deadline=null}
 wss.on('connection',(ws,req)=>{ws.on('message',raw=>{let m;try{m=JSON.parse(raw)}catch{return error(ws,'Noto‘g‘ri xabar')};if(!m||typeof m!=='object'||Array.isArray(m))return;
@@ -20,8 +35,23 @@ if(m.type==='create'||m.type==='join'){
  if(typeof m.clientId!=='string'||! /^[a-f0-9-]{36}$/.test(m.clientId))return error(ws,'Brauzerni yangilang');
  const p={id:crypto.randomUUID(),name,ws,clientId:m.clientId,token:crypto.randomBytes(24).toString('hex')};ws.player=p;ws.room=room.code;room.players.push(p);if(!room.host)room.host=p.id;room.updated=Date.now();send(ws,{type:'joined',code:room.code,token:p.token});publish(room);return
 }
-if(m.type==='resume'){if(ws.player)return error(ws,'Siz allaqachon xonadasiz');const room=rooms.get(String(m.code||'').toUpperCase()),p=room?.players.find(x=>x.token===m.token);if(!p)return error(ws,'Sessiya tugagan. Qaytadan kiring');const old=p.ws;p.ws=ws;ws.player=p;ws.room=room.code;if(old&&old!==ws)old.close();room.updated=Date.now();send(ws,{type:'joined',code:room.code,token:p.token});publish(room);if(['roles','discussion','voting'].includes(room.phase))send(ws,roleFor(room,p));return}
+if(m.type==='resume'){if(ws.player)return error(ws,'Siz allaqachon xonadasiz');const room=rooms.get(String(m.code||'').toUpperCase()),p=room?.players.find(x=>x.token===m.token);if(!p)return error(ws,'Sessiya tugagan. Qaytadan kiring');const old=p.ws;p.voice=null;p.ws=ws;ws.player=p;ws.room=room.code;if(old&&old!==ws)old.close();room.updated=Date.now();send(ws,{type:'joined',code:room.code,token:p.token});publish(room);if(['roles','discussion','voting'].includes(room.phase))send(ws,roleFor(room,p));return}
 const p=ws.player,room=rooms.get(ws.room);if(!p||!room||p.ws!==ws||!room.players.includes(p))return error(ws,'Avval xonaga kiring');room.updated=Date.now();
+
+// Signaling is authenticated by the current room socket and a fresh voice session.
+if(m.type==='voiceJoin'){if(p.voiceBlocked)return send(ws,{type:'voiceError',message:'Boshlovchi ovozingizni bloklagan.'});if(p.voice)return;const session=crypto.randomUUID();p.voice={session,muted:true};send(ws,{type:'voiceJoined',session,iceServers:voiceIceServers(p.id),relayConfigured:!!process.env.TURN_URLS&&!!process.env.TURN_SECRET});publish(room);return}
+if(m.type==='voiceLeave'){if(p.voice&&m.session===p.voice.session){p.voice=null;publish(room)}return}
+if(m.type==='voiceMute'){if(p.voice&&m.session===p.voice.session&&typeof m.muted==='boolean'){p.voice.muted=m.muted;publish(room)}return}
+if(m.type==='voiceBlock'){if(p.id!==room.host)return error(ws,'Faqat boshlovchi boshqaradi');const target=room.players.find(x=>x.id===m.target);if(!target||target===p||typeof m.blocked!=='boolean')return;target.voiceBlocked=m.blocked;if(m.blocked){target.voice=null;send(target.ws,{type:'voiceBlocked',message:'Boshlovchi ovozingizni blokladi.'})}publish(room);return}
+if(m.type==='voiceSignal'){
+ if(!p.voice||p.voiceBlocked||m.session!==p.voice.session)return;
+ const target=room.players.find(x=>x.id===m.target&&x.id!==p.id);
+ if(!target?.voice||target.voiceBlocked||target.voice.session!==m.targetSession||target.ws?.readyState!==WebSocket.OPEN)return;
+ const at=Date.now();if(!ws.voiceRate||at-ws.voiceRate.at>10000)ws.voiceRate={at,count:0};if(++ws.voiceRate.count>120)return;
+ const signal=cleanVoiceSignal(m.signal);if(!signal)return;
+ send(target.ws,{type:'voiceSignal',from:p.id,session:p.voice.session,targetSession:target.voice.session,signal});return
+}
+
 if(['settings','kick','start','discuss','voteStart','reveal','reset'].includes(m.type)&&p.id!==room.host)return error(ws,'Faqat boshlovchi boshqaradi');
 if(m.type==='settings'){if(room.phase!=='lobby')return error(ws,'Sozlamalar faqat kutish xonasida');if(!(m.category==='Tasodifiy'||Object.hasOwn(WORDS,m.category))||!Number.isInteger(m.impostors)||m.impostors<1||m.impostors>3||!Number.isInteger(m.minutes)||m.minutes<1||m.minutes>60||(m.timed!==undefined&&typeof m.timed!=='boolean')||typeof m.hints!=='boolean'||typeof m.knowEachOther!=='boolean')return error(ws,'Sozlamalar noto‘g‘ri: vaqt 1–60 daqiqa');room.settings={category:m.category,impostors:m.impostors,minutes:m.minutes,timed:m.timed!==false,hints:m.hints,knowEachOther:m.knowEachOther};publish(room)}
 if(m.type==='kick'){const target=room.players.find(x=>x.id===m.target);if(!target||target===p)return error(ws,'O‘zingizni chiqarib bo‘lmaydi');room.banned.add(target.clientId);room.players=room.players.filter(x=>x!==target);const socket=target.ws;target.token=null;target.ws=null;if(socket){socket.player=null;socket.room=null;send(socket,{type:'kicked'});socket.close()};if(['roles','discussion','voting'].includes(room.phase)){reset(room);for(const x of room.players)send(x.ws,{type:'notice',message:'O‘yinchi chiqarildi. Raund bekor qilindi; yangi raundni boshlang.'})}publish(room)}

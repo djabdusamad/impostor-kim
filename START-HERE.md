@@ -44,3 +44,6 @@ Create a room with 5 players. Choose 12 minutes and 2 impostors, enable both tog
 ## Reference-inspired Uzbek redesign
 
 The setup screen now uses a red title banner, two mode cards, compact settings rows and blue switches inspired by imposter.app. Player names, impostor count, topics and duration each have their own editor. Offline custom word lists (3–100 words, 50 characters per word) are saved on the device. Timer is optional in both modes; timed online rounds still use one server deadline. Uzbek labels and existing host moderation, private roles, reconnections and voting are retained. New cache version: v4.
+
+## Voice chat
+Online rooms now include optional Uzbek voice controls. See VOICE-SETUP.md for usage, host moderation, tests and optional TURN configuration. Default direct connections may fail on restrictive networks; no paid relay has been provisioned.
