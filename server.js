@@ -28,6 +28,12 @@ function finish(room){const counts=Object.fromEntries(room.players.map(p=>[p.id,
 function reset(room){room.phase='lobby';room.votes=new Map();room.word=null;room.wordImage=null;room.impostors=[];room.results=null;room.deadline=null}
 wss.on('connection',(ws,req)=>{ws.on('message',raw=>{let m;try{m=JSON.parse(raw)}catch{return error(ws,'Noto‘g‘ri xabar')};if(!m||typeof m!=='object'||Array.isArray(m))return;
 const name=typeof m.name==='string'?m.name.trim().slice(0,24):'';
+if(m.type==='checkRoom'){
+ if(ws.player)return;const requestId=typeof m.requestId==='string'?m.requestId.slice(0,64):'';if(!requestId)return;
+ const reject=message=>send(ws,{type:'roomCheckError',requestId,message});const now=Date.now();ws.checkTimes=(ws.checkTimes||[]).filter(x=>now-x<10000);if(ws.checkTimes.length>=10)return reject('Biroz kuting va qayta urinib ko‘ring.');ws.checkTimes.push(now);
+ const c=String(m.code||'').trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(c))return reject('6 belgili xona kodini kiriting');const room=rooms.get(c);if(!room)return reject('Xona topilmadi');if(room.banned.has(m.clientId))return reject('Siz bu xonadan chiqarilgansiz');if(room.phase!=='lobby')return reject('O‘yin boshlangan. Yangi o‘yin uchun kuting');if(room.players.length>=15)return reject('Xona to‘la');send(ws,{type:'roomChecked',requestId,code:c});return
+}
+
 if(m.type==='create'||m.type==='join'){
  if(ws.player)return error(ws,'Siz allaqachon xonadasiz');if(!name)return error(ws,'Ismingizni kiriting');let room;
  if(m.type==='create'){let c;do{c=code()}while(rooms.has(c));room={code:c,host:null,players:[],phase:'lobby',round:0,chat:[],settings:{category:'Tasodifiy',categories:Object.keys(WORDS),impostors:1,minutes:3,timed:true,hints:false,knowEachOther:false},votes:new Map(),banned:new Set(),updated:Date.now()};rooms.set(c,room)}
