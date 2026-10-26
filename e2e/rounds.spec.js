@@ -1,0 +1,24 @@
+const {test,expect}=require('@playwright/test');
+test('two impostors need two eliminations and eliminated players watch the next vote',async({browser})=>{
+ const contexts=await Promise.all(Array.from({length:5},()=>browser.newContext())),pages=await Promise.all(contexts.map(c=>c.newPage()));
+ try{
+ const host=pages[0];await host.goto('/online.html');await expect(host.locator('#status')).toContainText('ONLAYN');await host.locator('#create-room-choice').click();await host.locator('#name').fill('P0');await host.locator('#name-continue').click();const code=await host.locator('.code').getAttribute('data-code');
+ for(let i=1;i<5;i++){await pages[i].goto('/online.html?room='+code);await pages[i].locator('#name').fill('P'+i);await pages[i].locator('#name-continue').click();await expect(pages[i].locator('.waiting-card')).toBeVisible()}
+ await host.locator('#impostors').selectOption('2');await host.locator('#minutes').fill('7');await host.locator('#minutes').press('Tab');await expect(host.locator('#minutes')).toHaveValue('7');await host.getByRole('button',{name:'O‘yinni boshlash',exact:true}).click();
+ const roles=[];for(let i=0;i<5;i++){await pages[i].waitForFunction(()=>role!==null);roles.push(await pages[i].evaluate(()=>({id:room.me,name:room.players.find(p=>p.id===room.me).name,impostor:role.impostor})))}
+ const impostors=roles.filter(r=>r.impostor);await host.getByRole('button',{name:'MUHOKAMANI BOSHLASH →'}).click();
+ const out=new Set();for(let round=0;round<2;round++){
+ await host.getByRole('button',{name:'OVOZ BERISH →',exact:true}).click();for(let i=0;i<5;i++){if(out.has(roles[i].id))continue;const target=roles[i].id===impostors[round].id?roles.find(r=>r.id!==roles[i].id&&!out.has(r.id)):impostors[round];await pages[i].getByRole('button',{name:target.name,exact:true}).click();await pages[i].getByRole('button',{name:'OVOZNI TASDIQLASH',exact:true}).click()}
+ out.add(impostors[round].id);
+ if(round===0){for(const p of pages){await p.waitForFunction(()=>room?.phase==='discussion'&&room.cycle===2);expect(await p.evaluate(()=>Math.abs(room.deadline-Date.now()-clockOffset-420000))).toBeLessThan(5000);expect(await p.evaluate(()=>room.results)).toBeUndefined();await expect(p.locator('#victory-title')).toHaveCount(0)}const dead=pages[roles.findIndex(r=>r.id===impostors[0].id)];await expect(dead.locator('#chat-input')).toBeDisabled();await expect(dead.getByRole('button',{name:'Ovozli suhbatga qo‘shilish',exact:true})).toBeDisabled()}
+ }
+ for(const p of pages){await expect(p.locator('#victory-title')).toBeVisible();await expect(p.locator('.reveal-player.eliminated')).toHaveCount(2)}
+ }finally{await Promise.all(contexts.map(c=>c.close()))}
+});
+test('offline game repeats the timer and excludes eliminated voters',async({page})=>{
+ await page.goto('/index.html');await page.evaluate(()=>{state.names=['A','B','C','D','E'];state.round={word:'Osh',impostors:[0,1]};state.minutes=4;state.eliminated=[];state.cycle=1;state.seconds=1;state.running=true;state.screen='discuss';render()});
+ await expect(page.getByRole('button',{name:'OVOZNI TASDIQLASH →',exact:true})).toBeVisible({timeout:5000});
+ await page.evaluate(()=>{for(let i=0;i<5;i++){state.selected=i===0?2:0;castVote()}});expect(await page.evaluate(()=>state.screen)).toBe('discuss');expect(await page.evaluate(()=>state.cycle)).toBe(2);expect(await page.evaluate(()=>state.seconds)).toBeGreaterThan(235);
+ await page.getByRole('button',{name:'OVOZ BERISH →',exact:true}).click();expect(await page.evaluate(()=>state.voter)).toBe(1);await expect(page.getByRole('button',{name:'1. A',exact:true})).toHaveCount(0);
+ await page.evaluate(()=>{for(let i=1;i<5;i++){state.selected=i===1?2:1;castVote()}});await expect(page.locator('#victory-title')).toBeVisible();await expect(page.locator('.reveal-player.eliminated')).toHaveCount(2);
+});

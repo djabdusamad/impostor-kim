@@ -27,7 +27,7 @@ Render existing-service deployment: https://render.com/docs/deploys
 
 ## Reconnection and game rules
 
-Reload in the same tab to resume using its session token. Reconnecting replaces the previous connection and restores only that player's role and the remaining discussion time. The host stays host while disconnected; another player cannot take over. A host may kick disconnected players. Votes remain private until results, cannot target yourself online, and count once per player. Ties favor impostors; catching one impostor wins the round, preserving the existing rules. Host may end voting early.
+Reload in the same tab to resume using its session token. Reconnecting replaces the previous connection and restores only that player's role and the remaining discussion time. The host stays host while disconnected; another player cannot take over. A host may kick disconnected players. Votes remain private until results, cannot target yourself online, and count once per player. A tied or empty vote removes nobody and restarts discussion. A unique vote leader is eliminated. Civilians win only after all impostors are eliminated; impostors win when they equal or outnumber remaining civilians. Otherwise the same secret word and roles continue, the host’s discussion timer restarts, and only surviving players vote. Eliminated players stay as spectators and cannot send text or use voice until the game ends. Final vote counts add up across all voting cycles. Host may end voting early.
 
 Rooms are held in server memory, expire after three hours without player activity and do not survive restarts/deployments. Complete games before deploying. Use the Render address for online play; opening online.html as a local file will not provide a server.
 
@@ -35,7 +35,7 @@ Rooms are held in server memory, expire after three hours without player activit
 
 Run `npm ci` then `npm test` to repeat the automated multiplayer integration test. It checks five clients, invalid settings, host-only actions, two-impostor private roles, toggle-off privacy, discussion deadline restoration, socket replacement, voting, repeat rounds, active-round kick cancellation, blocked rejoin/resume, health and source-file protection.
 
-Both HTML scripts were syntax checked and their setup/role/game screens exercised in a simulated browser environment. No full visual browser or production deployment test was performed in this session. After deploying, use several real devices to confirm layout, offline caching, and voting on your network.
+Automated server and browser tests cover online/offline voting cycles, role privacy, reconnection, timers, elimination permissions, ties, and both win conditions. Device-specific microphone support still depends on the browser or Telegram client.
 
 ## Quick acceptance check (no code)
 
@@ -43,7 +43,7 @@ Create a room with 5 players. Choose 12 minutes and 2 impostors, enable both tog
 
 ## Reference-inspired Uzbek redesign
 
-The setup screen now uses a red title banner, two mode cards, compact settings rows and blue switches inspired by imposter.app. Player names, impostor count, topics and duration each have their own editor. Offline custom word lists (3–100 words, 50 characters per word) are saved on the device. Timer is optional in both modes; timed online rounds still use one server deadline. Uzbek labels and existing host moderation, private roles, reconnections and voting are retained. New cache version: v4.
+The setup screen now uses a red title banner, two mode cards, compact settings rows and blue switches inspired by imposter.app. Player names, impostor count, topics and duration each have their own editor. Offline custom word lists (3–100 words, 50 characters per word) are saved on the device. Timer is optional in both modes; timed online rounds still use one server deadline. Uzbek labels and existing host moderation, private roles, reconnections and voting are retained. The service worker refreshes versioned offline assets.
 
 ## Voice chat
 Online rooms now include optional Uzbek voice controls. See VOICE-SETUP.md for usage, host moderation, tests and optional TURN configuration. Default direct connections may fail on restrictive networks; no paid relay has been provisioned.
@@ -58,4 +58,4 @@ Mavzular now supports multiple selected categories and a select-all control in b
 The waiting-card summary now names the actual host and shows impostor count and hint status for everyone. Host badges follow server hostId rather than roster order. The crown button passes host control to a connected player, including through player management during active rounds. Xonadan chiqish removes the player, invalidates the old resume token and closes their voice session. Leaving during a round or results returns the remaining room to the lobby; the last departure deletes the room. A departing host automatically hands over to another remaining player, preferring one online. Temporary disconnection retains the player's place for reconnection. Saved room tokens now persist in the same browser across tabs/restarts; a second tab resumes the same identity and tells the replaced tab to stop reconnecting. Same-device duplicate joins are rejected unless authenticated with the saved token. Explicit leaving clears saved room credentials. Room data still lives in memory and cannot survive server restarts.
 
 ## Civilian victory screen
-Civilian wins now show a green victory banner, the secret word and a role-reveal roster in Uzbek. The roster displays actual votes, the host and your-player badges, and the unique voted-out player. Existing win and tie rules are preserved. Replay stays available; returning online leaves the room through the normal leave flow. Voice and text controls remain accessible in an expandable section.
+Civilian wins now show a green victory banner, the secret word and a role-reveal roster in Uzbek. The roster displays actual votes, the host and your-player badges, and every eliminated player. It appears only after all impostors have been caught. Replay stays available; returning online leaves the room through the normal leave flow. Voice and text controls remain accessible in an expandable section.
