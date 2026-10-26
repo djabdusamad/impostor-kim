@@ -4,7 +4,7 @@
   const hash = new URLSearchParams(location.hash.slice(1));
   const rawCode = query.get('tgWebAppStartParam') || query.get('room') || '';
   const code = /^[A-Z0-9]{6}$/i.test(rawCode) ? rawCode.toUpperCase() : '';
-  const api = window.GameTelegram = { code, name: '', active: false, bot: '' };
+  const api = window.GameTelegram = { code, name: '', active: false, bot: '', initData: '', loading:hash.has('tgWebAppData')||hash.has('tgWebAppPlatform') };
   api.confirm = (message, done) => {
     const tg = api.active && window.Telegram.WebApp;
     if (tg && typeof tg.showConfirm === 'function' && tg.isVersionAtLeast('6.2')) tg.showConfirm(message, done);
@@ -32,7 +32,7 @@
   function initialize() {
     const tg = window.Telegram?.WebApp;
     if (!tg || tg.platform === 'unknown') return;
-    api.active = true;
+    api.active = true;api.loading=false;api.initData=tg.initData||'';
     // Display suggestion only: never use unverified Telegram fields for authentication.
     api.name = String(tg.initDataUnsafe?.user?.first_name || '').slice(0, 24);
     const start = tg.initDataUnsafe?.start_param;
@@ -55,7 +55,7 @@
   else if (hash.has('tgWebAppData') || hash.has('tgWebAppPlatform')) {
     const script = document.createElement('script');
     script.src = 'https://telegram.org/js/telegram-web-app.js?64';
-    script.onload = initialize;
+    script.onload = ()=>{api.loading=false;initialize()};script.onerror=()=>{api.loading=false;window.dispatchEvent(new Event('game-telegram-ready'))};
     document.head.appendChild(script);
   }
 })();

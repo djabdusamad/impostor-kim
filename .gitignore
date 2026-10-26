@@ -5,3 +5,7 @@ npm-debug.log*
 
 playwright-report/
 test-results/
+
+recovery-*/
+*.state.json
+*.state.json.tmp

@@ -14,9 +14,11 @@ The deployed app URL is https://impostor-kim.onrender.com/online.html . Telegram
 ## Behavior and privacy
 
 - Telegram's back arrow closes the name/category screen or asks before leaving a room. Closing confirmation protects active room sessions.
-- Existing room resume tokens and server-side host/role rules remain authoritative. Telegram's name is only an editable suggestion, not a verified account or administrator identity. No Telegram IDs, initData or bot tokens are sent to the game server.
+- Existing room resume tokens and server-side host/role rules remain authoritative. A name remains editable. Only a valid Telegram signature establishes account identity; the name never grants host privileges. Signed Telegram initData is validated on the server with Telegram’s production Ed25519 public key and TELEGRAM_BOT_ID. The numeric verified user ID is stored privately for room membership and bans; raw initData is not stored. No secret bot token is needed.
 - Room invitations include only the room code, never a resume token, role, secret word or hint. Joining still requires confirming your name and server validation.
 - Existing website and offline game remain available. Telegram browser storage and an external browser have separate sessions; return in the same Telegram client to resume.
 - Tests simulate the Telegram bridge and exercise real room joins/leaves. Final device testing requires creating your bot in BotFather; it cannot be completed before that step.
 
 Official setup reference: https://core.telegram.org/bots/webapps#launching-the-main-mini-app and https://core.telegram.org/bots/webapps#launching-mini-apps-from-the-menu-button .
+
+Set TELEGRAM_BOT_ID to the digits before the colon in the bot token (8853819117 for this bot). Never set the whole token there. Telegram-created rooms default to verified accounts only. Hosts may turn that restriction off to admit anonymous website players, with weaker ban protection. Sessions can resume using their private token; reopening the same room from a verified Telegram account resumes the same player rather than duplicating them.
