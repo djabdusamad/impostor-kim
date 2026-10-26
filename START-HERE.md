@@ -47,3 +47,6 @@ The setup screen now uses a red title banner, two mode cards, compact settings r
 
 ## Voice chat
 Online rooms now include optional Uzbek voice controls. See VOICE-SETUP.md for usage, host moderation, tests and optional TURN configuration. Default direct connections may fail on restrictive networks; no paid relay has been provisioned.
+
+## Room text chat
+Every online room has Xona suhbati in Uzbek. All room players can send plain-text messages (up to 500 characters; Enter sends, Shift+Enter adds a line). The last 100 messages are restored on reconnect, retained between rounds, and lost when the room expires or the server restarts. Names and timestamps come from the server; messages are escaped, never rendered as HTML. Sending is limited to five messages per ten seconds and at least 800 ms apart. The host can delete messages. Removed players cannot post; there are no messages between different rooms or private role-based chat channels. The text chat needs no microphone or additional service. Drafts survive game-state updates; unacknowledged retries are deduplicated.

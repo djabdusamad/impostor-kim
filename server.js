@@ -2,7 +2,7 @@ const http=require('http'),fs=require('fs'),path=require('path'),crypto=require(
 const {WebSocketServer,WebSocket}=require('ws');
 const PORT=process.env.PORT||3000,root=__dirname,rooms=new Map();
 const WORDS={"Oziq-ovqat":['Osh','Somsa','Manti','Lag‘mon','Shashlik','Sumalak','Chuchvara','Tandir non','Qovun','Tarvuz'],"Joylar":['Maktab','Bozor','Kutubxona','Stadion','Aeroport','Choyxona','Metro','Kinoteatr','Muzey','Bog‘'],"Hayvonlar":['Mushuk','It','Sher','Fil','Ot','Tulki','Bo‘ri','Ayiq','Quyon','Tuya'],"Buyumlar":['Telefon','Kalit','Ko‘zoynak','Sumka','Soat','Qalam','Kitob','Kompyuter','Stul','Stol'],"Kasblar":['O‘qituvchi','Shifokor','Dizayner','Dasturchi','Oshpaz','Haydovchi','Uchuvchi','Tarjimon','Rassom','Sartarosh']};
-const server=http.createServer((req,res)=>{let url;try{url=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{return res.writeHead(400).end()};if(url==='/health'){res.writeHead(200,{'Content-Type':'text/plain'});return res.end('OK')}if(url==='/')url='/index.html';const allowed=new Set(['/index.html','/online.html','/sw.js','/manifest.webmanifest','/icon.svg','/voice.js']);if(!allowed.has(url))return res.writeHead(404).end('Not found');fs.readFile(path.join(root,url),(err,data)=>{if(err)return res.writeHead(404).end();res.writeHead(200,{'Content-Type':url.endsWith('.html')?'text/html; charset=utf-8':url.endsWith('.js')?'application/javascript':url.endsWith('.svg')?'image/svg+xml':'application/json','Cache-Control':'no-cache'}).end(data)})});
+const server=http.createServer((req,res)=>{let url;try{url=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{return res.writeHead(400).end()};if(url==='/health'){res.writeHead(200,{'Content-Type':'text/plain'});return res.end('OK')}if(url==='/')url='/index.html';const allowed=new Set(['/index.html','/online.html','/sw.js','/manifest.webmanifest','/icon.svg','/voice.js','/chat.js']);if(!allowed.has(url))return res.writeHead(404).end('Not found');fs.readFile(path.join(root,url),(err,data)=>{if(err)return res.writeHead(404).end();res.writeHead(200,{'Content-Type':url.endsWith('.html')?'text/html; charset=utf-8':url.endsWith('.js')?'application/javascript':url.endsWith('.svg')?'image/svg+xml':'application/json','Cache-Control':'no-cache'}).end(data)})});
 const wss=new WebSocketServer({server,maxPayload:32768});const send=(ws,msg)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg))};const random=n=>crypto.randomInt(n);const code=()=>crypto.randomBytes(4).toString('hex').slice(0,6).toUpperCase();
 
 
@@ -30,13 +30,26 @@ wss.on('connection',(ws,req)=>{ws.on('message',raw=>{let m;try{m=JSON.parse(raw)
 const name=typeof m.name==='string'?m.name.trim().slice(0,24):'';
 if(m.type==='create'||m.type==='join'){
  if(ws.player)return error(ws,'Siz allaqachon xonadasiz');if(!name)return error(ws,'Ismingizni kiriting');let room;
- if(m.type==='create'){let c;do{c=code()}while(rooms.has(c));room={code:c,host:null,players:[],phase:'lobby',round:0,settings:{category:'Tasodifiy',impostors:1,minutes:3,timed:true,hints:false,knowEachOther:false},votes:new Map(),banned:new Set(),updated:Date.now()};rooms.set(c,room)}
+ if(m.type==='create'){let c;do{c=code()}while(rooms.has(c));room={code:c,host:null,players:[],phase:'lobby',round:0,chat:[],settings:{category:'Tasodifiy',impostors:1,minutes:3,timed:true,hints:false,knowEachOther:false},votes:new Map(),banned:new Set(),updated:Date.now()};rooms.set(c,room)}
  else {room=rooms.get(String(m.code||'').trim().toUpperCase());if(!room)return error(ws,'Xona topilmadi');if(room.banned.has(m.clientId))return send(ws,{type:'kicked'});if(room.phase!=='lobby')return error(ws,'O‘yin boshlangan. Yangi o‘yin uchun kuting');if(room.players.length>=15)return error(ws,'Xona to‘la')}
  if(typeof m.clientId!=='string'||! /^[a-f0-9-]{36}$/.test(m.clientId))return error(ws,'Brauzerni yangilang');
- const p={id:crypto.randomUUID(),name,ws,clientId:m.clientId,token:crypto.randomBytes(24).toString('hex')};ws.player=p;ws.room=room.code;room.players.push(p);if(!room.host)room.host=p.id;room.updated=Date.now();send(ws,{type:'joined',code:room.code,token:p.token});publish(room);return
+ const p={id:crypto.randomUUID(),name,ws,clientId:m.clientId,token:crypto.randomBytes(24).toString('hex')};ws.player=p;ws.room=room.code;room.players.push(p);if(!room.host)room.host=p.id;room.updated=Date.now();send(ws,{type:'joined',code:room.code,token:p.token});publish(room);send(ws,{type:'chatHistory',code:room.code,messages:room.chat});return
 }
-if(m.type==='resume'){if(ws.player)return error(ws,'Siz allaqachon xonadasiz');const room=rooms.get(String(m.code||'').toUpperCase()),p=room?.players.find(x=>x.token===m.token);if(!p)return error(ws,'Sessiya tugagan. Qaytadan kiring');const old=p.ws;p.voice=null;p.ws=ws;ws.player=p;ws.room=room.code;if(old&&old!==ws)old.close();room.updated=Date.now();send(ws,{type:'joined',code:room.code,token:p.token});publish(room);if(['roles','discussion','voting'].includes(room.phase))send(ws,roleFor(room,p));return}
+if(m.type==='resume'){if(ws.player)return error(ws,'Siz allaqachon xonadasiz');const room=rooms.get(String(m.code||'').toUpperCase()),p=room?.players.find(x=>x.token===m.token);if(!p)return error(ws,'Sessiya tugagan. Qaytadan kiring');const old=p.ws;p.voice=null;p.ws=ws;ws.player=p;ws.room=room.code;if(old&&old!==ws)old.close();room.updated=Date.now();send(ws,{type:'joined',code:room.code,token:p.token});publish(room);send(ws,{type:'chatHistory',code:room.code,messages:room.chat});if(['roles','discussion','voting'].includes(room.phase))send(ws,roleFor(room,p));return}
 const p=ws.player,room=rooms.get(ws.room);if(!p||!room||p.ws!==ws||!room.players.includes(p))return error(ws,'Avval xonaga kiring');room.updated=Date.now();
+
+
+if(m.type==='chatSend'){
+ const reject=message=>send(ws,{type:'chatError',message,nonce:typeof m.nonce==='string'?m.nonce.slice(0,64):null});
+ if(typeof m.text!=='string'||m.text.length>500||typeof m.nonce!=='string'||m.nonce.length>64)return reject('Xabar ko‘pi bilan 500 belgidan iborat bo‘lsin.');
+ const text=m.text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'').trim();if(!text)return reject('Xabar yozing.');
+ const existing=room.chat.find(x=>x.sender===p.id&&x.nonce===m.nonce);if(existing){send(ws,{type:'chatMessage',code:room.code,message:existing});return}const now=Date.now();p.chatTimes=(p.chatTimes||[]).filter(t=>now-t<10000);if(p.chatTimes.length>=5||p.chatTimes.length&&now-p.chatTimes.at(-1)<800)return reject('Biroz kuting, keyin yuboring.');p.chatTimes.push(now);
+ const message={id:crypto.randomUUID(),sender:p.id,name:p.name,text,at:now,nonce:m.nonce};room.chat.push(message);if(room.chat.length>100)room.chat.shift();
+ for(const x of room.players)send(x.ws,{type:'chatMessage',code:room.code,message});return
+}
+if(m.type==='chatDelete'){
+ if(p.id!==room.host)return error(ws,'Faqat boshlovchi boshqaradi');const index=room.chat.findIndex(x=>x.id===m.id);if(index<0)return;room.chat.splice(index,1);for(const x of room.players)send(x.ws,{type:'chatDeleted',code:room.code,id:m.id});return
+}
 
 // Signaling is authenticated by the current room socket and a fresh voice session.
 if(m.type==='voiceJoin'){if(p.voiceBlocked)return send(ws,{type:'voiceError',message:'Boshlovchi ovozingizni bloklagan.'});if(p.voice)return;const session=crypto.randomUUID();p.voice={session,muted:true};send(ws,{type:'voiceJoined',session,iceServers:voiceIceServers(p.id),relayConfigured:!!process.env.TURN_URLS&&!!process.env.TURN_SECRET});publish(room);return}
