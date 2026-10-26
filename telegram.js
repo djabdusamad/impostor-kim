@@ -5,6 +5,11 @@
   const rawCode = query.get('tgWebAppStartParam') || query.get('room') || '';
   const code = /^[A-Z0-9]{6}$/i.test(rawCode) ? rawCode.toUpperCase() : '';
   const api = window.GameTelegram = { code, name: '', active: false, bot: '' };
+  api.confirm = (message, done) => {
+    const tg = api.active && window.Telegram.WebApp;
+    if (tg && typeof tg.showConfirm === 'function' && tg.isVersionAtLeast('6.2')) tg.showConfirm(message, done);
+    else done(window.confirm(message));
+  };
   fetch('/telegram-config').then(r => r.json()).then(c => {
     if (/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(c.botUsername || '')) api.bot = c.botUsername;
   }).catch(() => {});
