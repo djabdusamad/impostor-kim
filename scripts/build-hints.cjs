@@ -1,0 +1,9 @@
+const fs=require('fs'),path=require('path'),root=path.resolve(__dirname,'..'),{WORDS}=require(path.join(root,'words.js'));const groups={};let cat;for(const line of fs.readFileSync(path.join(root,'hints-source.txt'),'utf8').split(/\r?\n/)){if(!line.trim())continue;if(line[0]==='@'){cat=line.slice(1);groups[cat]={};continue}const i=line.indexOf('|');if(i<1)throw Error('Invalid clue');groups[cat][line.slice(0,i)]=line.slice(i+1)}const shared={};for(const words of Object.values(groups))for(const [w,h]of Object.entries(words))shared[w]??=h;
+for(const [cat,words]of Object.entries(WORDS))for(const w of words){groups[cat]??={};if(!groups[cat][w]){if(!shared[w])throw Error('Missing '+cat+': '+w);groups[cat][w]=shared[w]}}
+const code=`(function(root){const CLUES=${JSON.stringify(groups)};
+const normalize=s=>String(s).normalize('NFKC').toLocaleLowerCase('uz').replace(/[‘’ʻʼ\u0060]/g,"'").replace(/[^\\p{L}\\p{N}']+/gu,' ').trim();
+function revealsWord(word,hint){const w=normalize(word),h=normalize(hint);return !!w&&(' '+h+' ').includes(' '+w+' ')}
+function getHint(word,category){let clue=Object.hasOwn(CLUES,category)&&Object.hasOwn(CLUES[category],word)?CLUES[category][word]:null;if(!clue){const matches=[...new Set(Object.values(CLUES).map(g=>Object.hasOwn(g,word)?g[word]:null).filter(Boolean))];if(matches.length===1)clue=matches[0]}return clue&&!revealsWord(word,clue)?clue:null}
+const api={CLUES,getHint,revealsWord};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.WordHints=api;})(typeof globalThis!=='undefined'?globalThis:this);
+`;
+fs.writeFileSync(path.join(root,'hints.js'),code);const {getHint}=require(path.join(root,'hints.js'));const missing=[];for(const [c,ws]of Object.entries(WORDS))for(const w of ws)if(!getHint(w,c))missing.push(c+': '+w);if(missing.length)throw Error('Missing or revealing clues: '+missing.join(', '));console.log('Clues',Object.values(groups).reduce((a,g)=>a+Object.keys(g).length,0));

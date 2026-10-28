@@ -19,7 +19,7 @@ Render existing-service deployment: https://render.com/docs/deploys
 - Host selects any whole number from 1 to 60 discussion minutes. Server validates the range. All devices use one server deadline, including after reconnecting. When time expires, voting opens automatically; the host can open voting earlier.
 - Host can remove any other player from the lobby or during play. Server rejects non-host moderation. An active departure is treated as elimination and the remaining players continue; spectator departures do not change the game. Win conditions are rechecked after departures.
 - Removed players lose their resume token. The server blocks their persistent browser identity from joining the same room, even with a new name. This is a casual-game block: clearing browser storage or using another browser/device can bypass it. Rooms and blocks disappear on server restart or expiry. Stronger bans require authenticated accounts.
-- “Impostorga ishora” gives only the selected topic/category on the private role screen, before discussion. The actual secret word is never included in an impostor's role message. When the host explicitly selects a topic, that topic is already visible in lobby settings; choose “Tasodifiy” if the topic should be a useful optional hint.
+- “Impostorga ishora” gives an Uzbek clue related to the selected secret word on the private role screen, before discussion. The actual secret word is never included in an impostor's role message. Clues describe the particular word rather than repeating the category. Ambiguous words use category-specific meanings.
 - “Impostorlar bir-birini bilsin” displays partner names only to impostors when there are at least two. The control is disabled for one impostor. Civilians never receive partner lists or hints.
 - Both toggles default off. Settings cannot change mid-round. At least two civilians are required; reduce impostor count if there are too few players.
 - Offline single-phone mode has the same duration and role toggles. Roles are hidden between handoffs. Offline mode shares one device, so its local data is not protected from someone inspecting the browser.
@@ -67,3 +67,7 @@ Discussion is followed by timed voting with abstention and a majority quorum. Ho
 ## Play again with the same players
 After either team wins, the host can select Shu o‘yinchilar bilan yana o‘ynash to start directly in the same room. Names, player identities and settings are retained; eliminated players return for the new game. Guests wait in that room without re-entering a code or name. Sozlamalarga qaytish remains available to the host to edit settings first. Offline mode offers the same replay action with the existing names and settings. Xonadan chiqish is a separate explicit action.
 
+
+
+## Word-specific hints
+All 534 built-in category entries have curated Uzbek clues in hints.js (499 distinct words, with category-specific clues for ambiguous names such as Rayhon and Paxtakor). The server sends a clue only to an impostor when hints are enabled; it still withholds the word and picture. Hint-off sends null, including after reconnection. Offline custom words support the format word | hint. Existing word-only lists still work; unknown custom words without a hint show that no clue was provided, rather than falling back to their category. Custom clues containing their answer are rejected.

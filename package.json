@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/*.test.js",
-    "test:voice-browser": "playwright test"
+    "test:voice-browser": "playwright test",
+    "build:hints": "node scripts/build-hints.cjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
