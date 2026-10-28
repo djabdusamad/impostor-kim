@@ -2,8 +2,9 @@ const fs=require('fs'),path=require('path'),root=path.resolve(__dirname,'..'),{W
 for(const [cat,words]of Object.entries(WORDS))for(const w of words){groups[cat]??={};if(!groups[cat][w]){if(!shared[w])throw Error('Missing '+cat+': '+w);groups[cat][w]=shared[w]}}
 const code=`(function(root){const CLUES=${JSON.stringify(groups)};
 const normalize=s=>String(s).normalize('NFKC').toLocaleLowerCase('uz').replace(/[‘’ʻʼ\u0060]/g,"'").replace(/[^\\p{L}\\p{N}']+/gu,' ').trim();
+function isSingleWord(hint){return typeof hint==='string'&&/^[\\p{L}\\p{M}]+(?:[‘’ʻʼ'][\\p{L}\\p{M}]+)*[‘’ʻʼ']?$/u.test(hint)}
 function revealsWord(word,hint){const w=normalize(word),h=normalize(hint);return !!w&&(' '+h+' ').includes(' '+w+' ')}
-function getHint(word,category){let clue=Object.hasOwn(CLUES,category)&&Object.hasOwn(CLUES[category],word)?CLUES[category][word]:null;if(!clue){const matches=[...new Set(Object.values(CLUES).map(g=>Object.hasOwn(g,word)?g[word]:null).filter(Boolean))];if(matches.length===1)clue=matches[0]}return clue&&!revealsWord(word,clue)?clue:null}
-const api={CLUES,getHint,revealsWord};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.WordHints=api;})(typeof globalThis!=='undefined'?globalThis:this);
+function getHint(word,category){let clue=Object.hasOwn(CLUES,category)&&Object.hasOwn(CLUES[category],word)?CLUES[category][word]:null;if(!clue){const matches=[...new Set(Object.values(CLUES).map(g=>Object.hasOwn(g,word)?g[word]:null).filter(Boolean))];if(matches.length===1)clue=matches[0]}return isSingleWord(clue)&&!revealsWord(word,clue)?clue:null}
+const api={CLUES,getHint,revealsWord,isSingleWord};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.WordHints=api;})(typeof globalThis!=='undefined'?globalThis:this);
 `;
 fs.writeFileSync(path.join(root,'hints.js'),code);const {getHint}=require(path.join(root,'hints.js'));const missing=[];for(const [c,ws]of Object.entries(WORDS))for(const w of ws)if(!getHint(w,c))missing.push(c+': '+w);if(missing.length)throw Error('Missing or revealing clues: '+missing.join(', '));console.log('Clues',Object.values(groups).reduce((a,g)=>a+Object.keys(g).length,0));
