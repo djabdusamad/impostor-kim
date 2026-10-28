@@ -29,11 +29,11 @@ test('two impostors: repeated votes, timer reset, spectator authority, privacy, 
  host.request({type:'reset'});assert.equal(room.phase,'lobby');assert.equal(room.eliminated.length,0);assert.equal(room.lastVote,null);assert.equal(room.cycle,1);
 });
 test('impostors win at parity; empty vote restarts without eliminating anyone',()=>{
- const g=game(5),{host,room}=g;host.request({type:'voteStart'});host.request({type:'reveal'});assert.equal(room.phase,'voting');room.deadline=Date.now()-1;g.tick();assert.equal(room.phase,'discussion');assert.equal(room.cycle,2);assert.equal(room.eliminated.length,0);
+ const g=game(5),{host,room}=g;host.request({type:'voteStart'});host.request({type:'reveal'});assert.equal(room.phase,'discussion');assert.equal(room.cycle,2);assert.equal(room.eliminated.length,0);
  g.eliminate(g.players.find(c=>!c.take('role').impostor));assert.equal(room.phase,'results');assert.equal(room.results.caught,false);
 });
-test('voting deadline, abstention, majority quorum and no premature host finish',()=>{
- const g=game(),{host,room}=g;host.request({type:'voteStart'});assert.ok(Math.abs(room.deadline-Date.now()-45000)<1000);host.request({type:'reveal'});assert.equal(room.phase,'voting');assert.ok(host.take('error'));
+test('voting deadline, abstention and automatic majority quorum',()=>{
+ const g=game(),{host,room}=g;host.request({type:'voteStart'});assert.ok(Math.abs(room.deadline-Date.now()-45000)<1000);
  const target=g.players.find(c=>c!==host);host.request({type:'vote',target:g.id(target)});room.deadline=Date.now()-1;g.tick();assert.equal(room.phase,'discussion');assert.equal(room.eliminated.length,0);assert.equal(room.lastVote.quorum,false);
  host.request({type:'voteStart'});for(const c of g.alive())c.request({type:'vote',target:null});assert.equal(room.phase,'discussion');assert.equal(room.eliminated.length,0);
 });
@@ -51,4 +51,9 @@ test('listener cannot unmute or negotiate sending audio; verified-only rooms blo
  const g=game(5),{room,host}=g,imp=g.players.find(c=>c!==host&&c.take('role').impostor);g.eliminate(imp);imp.request({type:'voiceJoin'});const joined=imp.take('voiceJoined'),p=room.players.find(p=>p.id===g.id(imp));assert.equal(joined.listening,true);imp.request({type:'voiceMute',session:joined.session,muted:false});assert.equal(p.voice.muted,true);
  host.request({type:'voiceJoin'});const target=host.take('voiceJoined');let before=host.messages.length;imp.request({type:'voiceSignal',session:joined.session,target:g.id(host),targetSession:target.session,signal:{description:{type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n'}}});assert.equal(host.messages.length,before);imp.request({type:'voiceSignal',session:joined.session,target:g.id(host),targetSession:target.session,signal:{description:{type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=recvonly\r\n'}}});assert.equal(host.take('voiceSignal').from,p.id);
  const verified=game(5,{env:{TELEGRAM_BOT_ID:'8853819117'},verify:raw=>raw==='signed-user'?{id:'123'}:null});verified.room.phase='lobby';verified.room.settings.verifiedOnly=true;const guest=verified.connect();guest.request({type:'join',code:verified.code,name:'Guest',clientId:require('crypto').randomUUID()});assert.ok(guest.take('error'));guest.request({type:'join',code:verified.code,name:'Verified',clientId:require('crypto').randomUUID(),telegramInit:'signed-user'});assert.ok(guest.take('joined'));verified.host.request({type:'kick',target:guest.take('state').me});assert.ok(guest.take('kicked'));const again=verified.connect();again.request({type:'join',code:verified.code,name:'Renamed',clientId:require('crypto').randomUUID(),telegramInit:'signed-user'});assert.ok(again.take('kicked'));const fake=verified.connect();fake.request({type:'join',code:verified.code,name:'Fake',clientId:require('crypto').randomUUID(),telegramInit:'fake'});assert.ok(fake.take('error'));
+});
+test('only the host can end voting early; cast votes count without waiting for a quorum',()=>{
+ const g=game(),{host,room}=g,target=g.players.find(c=>c.take('role').impostor),voter=g.players.find(c=>c!==target&&c!==host)||host;host.request({type:'voteStart'});voter.request({type:'vote',target:g.id(target)});assert.equal(room.votes.size,1);g.players.find(c=>c!==host).request({type:'reveal',force:true});assert.equal(room.phase,'voting');host.request({type:'reveal'});assert.equal(room.phase,'discussion');assert.equal(room.lastVote.hostEnded,true);assert.equal(room.lastVote.target,g.id(target));assert.equal(room.lastVote.counts[g.id(target)],1);assert.ok(room.eliminated.includes(g.id(target)));assert.equal(room.votes.size,0);
+ voter.request({type:'vote',target:g.id(host)});assert.equal(room.votes.size,0);
+ host.request({type:'voteStart'});host.request({type:'reveal'});assert.equal(room.phase,'discussion');assert.equal(room.lastVote.target,null);
 });

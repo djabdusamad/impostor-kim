@@ -47,9 +47,9 @@ function publish(room){store.save(rooms);for(const p of room.players)send(p.ws,{
 function roomPhase(ws){return rooms.get(ws.room)?.phase}function error(ws,message){send(ws,{type:'error',message})}
 function roleFor(room,p){const impostor=room.impostors.includes(p.id);return {type:'role',round:room.round,impostor,word:impostor?null:room.word,image:impostor?null:room.wordImage,hint:impostor&&room.settings.hints?getHint(room.word,room.category):null,partners:impostor&&room.settings.knowEachOther&&room.impostors.length>1?room.players.filter(x=>x.id!==p.id&&room.impostors.includes(x.id)).map(x=>({id:x.id,name:x.name})):[]}}
 function removeConnection(ws){const p=ws.player,room=rooms.get(ws.room);if(!p||!room||p.ws!==ws)return;p.voice=null;p.ws=null;p.disconnectedAt=Date.now();room.updated=Date.now();publish(room)}
-function finish(room){
- const eligible=room.players.filter(p=>activePlayer(room,p)).length,valid=[...room.votes.values()].filter(v=>v!==null);const quorum=valid.length>=Math.ceil(eligible/2);const outcome=RoundRules.resolve(room.players.map(p=>p.id),room.impostors,room.eliminated||[],quorum?valid:[]);
- room.voteTotals=room.voteTotals||{};for(const [id,count]of Object.entries(outcome.counts))room.voteTotals[id]=(room.voteTotals[id]||0)+count;room.eliminated=outcome.eliminated;room.lastVote={cycle:room.cycle||1,quorum,counts:outcome.counts,target:outcome.target,impostor:outcome.target!==null&&room.impostors.includes(outcome.target)};
+function finish(room,hostEnded=false){
+ const eligible=room.players.filter(p=>activePlayer(room,p)).length,valid=[...room.votes.values()].filter(v=>v!==null);const quorum=hostEnded||valid.length>=Math.ceil(eligible/2);const outcome=RoundRules.resolve(room.players.map(p=>p.id),room.impostors,room.eliminated||[],quorum?valid:[]);
+ room.voteTotals=room.voteTotals||{};for(const [id,count]of Object.entries(outcome.counts))room.voteTotals[id]=(room.voteTotals[id]||0)+count;room.eliminated=outcome.eliminated;room.lastVote={cycle:room.cycle||1,hostEnded,quorum,counts:outcome.counts,target:outcome.target,impostor:outcome.target!==null&&room.impostors.includes(outcome.target)};
  for(const x of room.players)if(!activePlayer(room,x))x.voice=null;
  if(outcome.winner){if(outcome.winner==='civilians'&&room.settings.finalGuess&&outcome.target!==null&&!room.players.find(p=>p.id===outcome.target)?.left){room.phase='guessing';room.guesser=outcome.target;room.deadline=Date.now()+20000}else endGame(room,outcome.winner==='civilians',outcome.winner==='civilians'?'caught':'parity')}
  else{room.cycle=(room.cycle||1)+1;room.votes=new Map();room.phase='discussion';room.deadline=room.settings.timed===false?null:Date.now()+room.settings.minutes*60000;}
@@ -111,7 +111,7 @@ if(m.type==='start'){room.players=room.players.filter(p=>!p.left);if(!['lobby','
 if(m.type==='discuss'&&room.phase==='roles'){room.phase='discussion';room.deadline=room.settings.timed===false?null:Date.now()+room.settings.minutes*60000;publish(room)}
 if(m.type==='voteStart'&&['roles','discussion'].includes(room.phase))startVoting(room)
 if(m.type==='vote'&&room.phase==='voting'&&activePlayer(room,p)&&!room.votes.has(p.id)&&(m.target===null||room.players.some(x=>x.id===m.target&&activePlayer(room,x))&&m.target!==p.id)){room.votes.set(p.id,m.target);if(room.votes.size===room.players.filter(x=>activePlayer(room,x)).length)finish(room);else publish(room)}
-if(m.type==='reveal'&&room.phase==='voting'){if(Date.now()<room.deadline)return error(ws,'Hamma ovoz bersin yoki ovoz berish vaqti tugashini kuting');finish(room)}
+if(m.type==='reveal'&&room.phase==='voting')finish(room,true)
 if(m.type==='guess'&&room.phase==='guessing'){if(Date.now()>=room.deadline){endGame(room,true,'guess-timeout');publish(room);return}if(p.id!==room.guesser||typeof m.word!=='string'||m.word.trim().length<1||m.word.length>60)return error(ws,'Bu taxminni faqat tanlangan impostor kiritadi');endGame(room,normalizeGuess(m.word)!==normalizeGuess(room.word),'guess');publish(room)}
 if(m.type==='reset'&&room.phase==='results'){reset(room);publish(room)}
 });ws.on('close',()=>removeConnection(ws))});
