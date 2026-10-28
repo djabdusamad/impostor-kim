@@ -63,3 +63,7 @@ Civilian wins now show a green victory banner, the secret word and a role-reveal
 
 ## Reliability and fair play
 Discussion is followed by timed voting with abstention and a majority quorum. Host failover happens after 30 seconds. Departures preserve the current game. Telegram-created rooms require cryptographically verified Telegram identities by default; bans follow those identities across browsers. Anonymous website rooms remain available. The optional final-guess setting grants the last caught impostor one 20-second attempt; a correct answer gives impostors the win. Offline mode includes abstention, per-player voting deadlines, and the optional final guess.
+
+## Play again with the same players
+After either team wins, the host can select Shu o‘yinchilar bilan yana o‘ynash to start directly in the same room. Names, player identities and settings are retained; eliminated players return for the new game. Guests wait in that room without re-entering a code or name. Sozlamalarga qaytish remains available to the host to edit settings first. Offline mode offers the same replay action with the existing names and settings. Xonadan chiqish is a separate explicit action.
+
