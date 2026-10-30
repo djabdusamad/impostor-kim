@@ -1,4 +1,4 @@
-const CACHE='impostor-kim-v20';
+const CACHE='impostor-kim-v21';
 const ASSETS=['./','./index.html','./online.html','./voice.js','./chat.js','./manifest.webmanifest','./icon.svg','./categories.js','./category-ui.js','./words.js','./art/word-01.svg','./art/word-02.svg','./art/word-03.svg','./art/word-04.svg','./art/word-05.svg','./art/word-06.svg','./art/word-07.svg','./art/word-08.svg','./art/word-09.svg','./art/word-10.svg','./art/word-11.svg','./art/word-12.svg','./art/word-13.svg','./art/word-14.svg','./art/word-15.svg','./art/word-16.svg','./art/word-17.svg','./art/word-18.svg','./art/word-19.svg','./art/word-20.svg','./app-update.js','./results-ui.js','./results.css','./telegram.js','./telegram.css','./round-rules.js','./hints.js'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'})));await self.skipWaiting()})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('impostor-kim-')&&key!==CACHE)await caches.delete(key);await self.clients.claim()})()));
