@@ -2,7 +2,7 @@ const {test,expect}=require('@playwright/test');
 test('two impostors need two eliminations and eliminated players watch the next vote',async({browser})=>{
  const contexts=await Promise.all(Array.from({length:5},()=>browser.newContext())),pages=await Promise.all(contexts.map(c=>c.newPage()));
  try{
- const host=pages[0];await host.goto('/online.html');await expect(host.locator('#status')).toContainText('ONLAYN');await host.locator('#create-room-choice').click();await host.locator('#name').fill('P0');await host.locator('#name-continue').click();const code=await host.locator('.code').getAttribute('data-code');
+ const host=pages[0];await host.goto('/online.html');await expect(host.locator('#status')).toContainText('ONLAYN');await host.locator('#create-room-choice').click();await host.locator('#create-settings-continue').click();await host.locator('#name').fill('P0');await host.locator('#name-continue').click();if(await host.evaluate(()=>entryIntent==='create'&&!!entryName.trim())){await host.locator('#lobby-settings').waitFor();await host.locator('#lobby-settings').evaluate(el=>el.open=true);}const code=await host.locator('.code').getAttribute('data-code');
  for(let i=1;i<5;i++){await pages[i].goto('/online.html?room='+code);await pages[i].locator('#name').fill('P'+i);await pages[i].locator('#name-continue').click();await expect(pages[i].locator('.waiting-card')).toBeVisible()}
  await host.locator('#impostors').selectOption('2');await host.locator('#minutes').fill('7');await host.locator('#minutes').press('Tab');await expect(host.locator('#minutes')).toHaveValue('7');await host.getByRole('button',{name:'O‘yinni boshlash',exact:true}).click();
  const roles=[];for(let i=0;i<5;i++){await pages[i].waitForFunction(()=>role!==null);roles.push(await pages[i].evaluate(()=>({id:room.me,name:room.players.find(p=>p.id===room.me).name,impostor:role.impostor})))}
@@ -22,3 +22,4 @@ test('offline game repeats the timer and excludes eliminated voters',async({page
  await page.getByRole('button',{name:'OVOZ BERISH →',exact:true}).click();expect(await page.evaluate(()=>state.voter)).toBe(1);await expect(page.getByRole('button',{name:'1. A',exact:true})).toHaveCount(0);
  await page.evaluate(()=>{for(let i=1;i<5;i++){state.selected=i===1?2:1;castVote()}});await expect(page.locator('#victory-title')).toBeVisible();await expect(page.locator('.reveal-player.eliminated')).toHaveCount(2);
 });
+
