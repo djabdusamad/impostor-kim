@@ -11,7 +11,7 @@ test('Telegram shell supports names, room links, back and normal server rooms',a
   await expect(guest.locator('#name')).toHaveValue('Sardor');await guest.locator('#name-continue').click();if(await guest.evaluate(()=>entryIntent==='create'&&!!entryName.trim())){await guest.locator('#lobby-settings').waitFor();await guest.locator('#lobby-settings').evaluate(el=>el.open=true);}
   await expect(guest.locator('.waiting-card')).toBeVisible();await expect(host.locator('.lobby-player-list .player')).toHaveCount(2);
   await expect(guest.getByRole('button',{name:'Telegram orqali taklif qilish'})).toHaveCount(0);await guest.evaluate(()=>shareTelegram());
-  expect(await guest.evaluate(()=>window.shared)).toContain(encodeURIComponent('/online.html?room='+code));
+  expect(await guest.evaluate(()=>window.shared)).toContain(encodeURIComponent('https://t.me/imposter_kimbot?startapp='+code));
   expect(await guest.evaluate(()=>window.tgCalls)).toEqual(expect.arrayContaining(['expand','ready','confirm-close']));
   guest.on('dialog',d=>d.accept());await guest.evaluate(()=>window.tgBack());await expect(guest.locator('#create-room-choice')).toBeVisible();await expect(host.locator('.lobby-player-list .player')).toHaveCount(1);
  } finally {await hostContext.close();await guestContext.close()}

@@ -4,7 +4,7 @@
   const hash = new URLSearchParams(location.hash.slice(1));
   const rawCode = query.get('tgWebAppStartParam') || query.get('room') || '';
   const code = /^[A-Z0-9]{6}$/i.test(rawCode) ? rawCode.toUpperCase() : '';
-  const api = window.GameTelegram = { code, name: '', active: false, bot: '', initData: '', loading:hash.has('tgWebAppData')||hash.has('tgWebAppPlatform') };
+  const api = window.GameTelegram = { code, name: '', active: false, bot: 'imposter_kimbot', initData: '', loading:hash.has('tgWebAppData')||hash.has('tgWebAppPlatform') };
   api.confirm = (message, done) => {
     const tg = api.active && window.Telegram.WebApp;
     if (tg && typeof tg.showConfirm === 'function' && tg.isVersionAtLeast('6.2')) tg.showConfirm(message, done);
@@ -13,11 +13,13 @@
   fetch('/telegram-config').then(r => r.json()).then(c => {
     if (/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(c.botUsername || '')) api.bot = c.botUsername;
   }).catch(() => {});
+  api.webInviteURL = roomCode => `${location.origin}/online.html?room=${encodeURIComponent(roomCode)}`;
+  api.telegramInviteURL = roomCode => `https://t.me/${api.bot}?startapp=${encodeURIComponent(roomCode)}`;
   api.inviteURL = roomCode => api.bot
     ? `https://t.me/${api.bot}?startapp=${encodeURIComponent(roomCode)}`
     : `${location.origin}/online.html?room=${encodeURIComponent(roomCode)}`;
   api.share = roomCode => {
-    const url = 'https://t.me/share/url?url=' + encodeURIComponent(api.inviteURL(roomCode)) + '&text=' + encodeURIComponent('IMPOSTOR KIM? Birga o‘ynaymiz! Xona kodi: ' + roomCode);
+    const url = 'https://t.me/share/url?url=' + encodeURIComponent(api.telegramInviteURL(roomCode)) + '&text=' + encodeURIComponent('IMPOSTOR KIM? Birga o‘ynaymiz! Xona kodi: ' + roomCode);
     if (api.active) window.Telegram.WebApp.openTelegramLink(url);
     else window.open(url, '_blank', 'noopener,noreferrer');
   };
